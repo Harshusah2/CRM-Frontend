@@ -15,24 +15,30 @@ async function apiRequest(path, options = {}) {
             ...options,
         });
 
+        // Always log the raw response in development
+        // if (process.env.NODE_ENV === 'development') {
+        //     console.log(`API Response for ${path}:`, {
+        //         status: res.status,
+        //         statusText: res.statusText,
+        //         headers: Object.fromEntries(res.headers.entries())
+        //     });
+        // }
+
         const body = await res.json().catch(() => ({}));
 
-        // Debug logging
-        // console.log(`API Response for ${path}:`, {
-        //     status: res.status,
-        //     body,
-
-        //     headers: res.headers,
-        // });
-
         if (!res.ok) {
-            throw new Error(body.message || "Request failed");
+            // Include more details in the error
+            throw new Error(body.message || `Request failed with status ${res.status}`);
         }
 
         return body;
     } catch (error) {
-        console.error(`API Error for ${path}:`, error);
-        throw new Error(error.message || "An unexpected error occurred");
+        console.error(`API Error for ${path}:`, {
+            message: error.message,
+            response: error.response,
+            stack: error.stack
+        });
+        throw error; // Preserve the original error
     }
 }
 
@@ -44,25 +50,49 @@ export const AuthProvider = ({ children }) => {
     
     const signin = async ({ email, password }) => {
         try {
-            if (!email || !password) {
-                throw new Error("Email and password are required");
+            // Validate inputs
+            if (!email?.trim()) {
+                throw new Error("Email is required");
+            }
+            if (!password?.trim()) {
+                throw new Error("Password is required");
             }
 
-            // normalize input to avoid typos (trim + lowercase)
+            // normalize input
             const emailNormalized = email.trim().toLowerCase();
-            console.log("Signing in:", emailNormalized);
+            
+            // Debug log the request (remove in production)
+            // console.log("Sending signin request:", {
+            //     email: emailNormalized,
+            //     hasPassword: !!password
+            // });
 
             const data = await apiRequest("/api/auth/signin", {
                 method: "POST",
-                body: JSON.stringify({ email: emailNormalized, password }),
+                body: JSON.stringify({ 
+                    email: emailNormalized, 
+                    password 
+                }),
             });
 
-            // Expecting { status, token, user }
-            const token = data.token || data?.data?.token;
-            const returnedUser = data.user || data?.data?.user || data;
+            // Log the response structure in development
+            // if (process.env.NODE_ENV === 'development') {
+            //     console.log("Signin response structure:", {
+            //         hasToken: !!data.token || !!(data?.data?.token),
+            //         hasUser: !!data.user || !!(data?.data?.user),
+            //         responseKeys: Object.keys(data)
+            //     });
+            // }
 
-            if (!token || !returnedUser) {
-                throw new Error(data.message || "Invalid response from server");
+            // Extract token and user with detailed error if missing
+            const token = data.token || data?.data?.token;
+            if (!token) {
+                throw new Error("Server response missing authentication token");
+            }
+
+            const returnedUser = data.user || data?.data?.user || data;
+            if (!returnedUser?.email) {
+                throw new Error("Server response missing user data");
             }
 
             localStorage.setItem("token", token);
@@ -70,7 +100,14 @@ export const AuthProvider = ({ children }) => {
             navigate("/dashboard", { replace: true });
             return { token, user: returnedUser };
         } catch (error) {
-            console.error("SignIn failed:", error);
+            console.error("SignIn failed:", {
+                message: error.message,
+                originalError: error
+            });
+            // Provide more specific error messages
+            if (error.message.includes("Failed to fetch")) {
+                throw new Error("Unable to connect to server. Please check your internet connection.");
+            }
             throw new Error(error.message || "Invalid email or password");
         }
     };
