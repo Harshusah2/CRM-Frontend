@@ -3,12 +3,20 @@ import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API = import.meta.env.VITE_API_URL;
+if (!API) {
+    console.error('VITE_API_URL is not defined in environment variables');
+}
 console.log('API URL:', API);
 
 async function apiRequest(path, options = {}) {
     const url = `${API}${path}`;
-    console.log('Making request to:', url);
+    // console.log('Making request to:', url);
+
+    if (!API) {
+        throw new Error('API URL is not configured. Please check your environment variables.');
+    }
+
     try {
         const res = await fetch(`${API}${path}`, {
             headers: {
@@ -36,12 +44,20 @@ async function apiRequest(path, options = {}) {
 
         return body;
     } catch (error) {
-        console.error(`API Error for ${path}:`, {
+        if (!window.navigator.onLine) {
+            throw new Error('No internet connection. Please check your network.');
+        }
+        
+        if (error.message === 'Failed to fetch') {
+            throw new Error(`Unable to connect to server at ${API}. Please check the API URL configuration.`);
+        }
+
+        console.error(`API Error for ${url}:`, {
             message: error.message,
             response: error.response,
             stack: error.stack
         });
-        throw error; // Preserve the original error
+        throw error;
     }
 }
 
