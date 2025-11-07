@@ -4,8 +4,11 @@ import { useNavigate } from "react-router-dom";
 const AuthContext = createContext();
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+console.log('API URL:', API);
 
 async function apiRequest(path, options = {}) {
+    const url = `${API}${path}`;
+    console.log('Making request to:', url);
     try {
         const res = await fetch(`${API}${path}`, {
             headers: {
