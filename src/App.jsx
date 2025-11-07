@@ -3,7 +3,7 @@ import SignUpPage from './components/Account/signup.jsx'
 import SignInPage from './components/Account/signin.jsx'
 import Logout from './components/Account/logout.jsx'
 import ProtectedRoute from './context/ProtectedRoute.jsx'
-import DisplayHome from './components/DisplayHOme.jsx'
+import DisplayHome from './components/DisplayHome.jsx'
 
 export default function App() {
     return (
